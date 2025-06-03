@@ -21,6 +21,8 @@ class Qualifier(NamedTuple):
     account: str = None
     region: str = None
     name: str = None
+    teleport_proxy_aws_role_arn: str = None
+    teleport_proxy_app_name: str = None
 
 
 class CodeArtifactKeyringConfig:
