@@ -135,7 +135,7 @@ class CodeArtifactBackend(backend.KeyringBackend):
 
     priority = 9.9
 
-    def __init__(self, /, config=None, session=None):
+    def __init__(self, /, config=None, session=None, proxy_args={}):
         super().__init__()
 
         if config:
@@ -156,6 +156,7 @@ class CodeArtifactBackend(backend.KeyringBackend):
             proxy_args = {}
             proxy_args["verify"] = proxy_manager.pem_path
             proxy_args["config"] = Config(proxies={"https": proxy_manager.proxy})
+            self.proxy_args = proxy_args
 
             self.session = boto3.Session(
                 aws_access_key_id=proxy_manager.access_key_id,
@@ -235,7 +236,25 @@ class CodeArtifactBackend(backend.KeyringBackend):
 
     def _get_codeartifact_client(self, /, config, region):
         # CodeArtifact requires a region.
-        kwargs = {"region_name": region}
+        kwargs = {
+            "region_name": region,
+            "config": self.proxy_args.get("config", None),
+            "verify": self.proxy_args.get("verify", None),
+        }
+
+        proxy_manager = AWSProxyManager(
+            aws_role="prod-SRE-Teleport-PowerUser", proxy_app="prod"
+        )
+        proxy_args = {}
+        proxy_args["verify"] = proxy_manager.pem_path
+        proxy_args["config"] = Config(proxies={"https": proxy_manager.proxy})
+        self.proxy_args = proxy_args
+
+        session = boto3.Session(
+            aws_access_key_id=proxy_manager.access_key_id,
+            aws_secret_access_key=proxy_manager.secret_access_key,
+            region_name="us-west-2",
+        )
 
         # If a profile name was provided, use it.
         profile_name = config.get("profile_name")
@@ -252,6 +271,5 @@ class CodeArtifactBackend(backend.KeyringBackend):
                     "aws_secret_access_key": aws_secret_access_key,
                 }
             )
-
         # Build a CodeArtifact client from the session.
-        return self.session.client("codeartifact", **kwargs)
+        return session.client("codeartifact", **proxy_args)
