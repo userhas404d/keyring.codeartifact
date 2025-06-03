@@ -80,8 +80,23 @@ class CodeArtifactKeyringConfig:
         # Expand the generator into a dictionary.
         self.config = dict(sections)
 
-    def lookup(self, domain=None, account=None, region=None, name=None):
-        key = Qualifier(domain, account, region, name)
+    def lookup(
+        self,
+        domain=None,
+        account=None,
+        region=None,
+        name=None,
+        teleport_proxy_aws_role_arn=None,
+        teleport_proxy_app_name=None,
+    ):
+        key = Qualifier(
+            domain,
+            account,
+            region,
+            name,
+            teleport_proxy_aws_role_arn,
+            teleport_proxy_app_name,
+        )
 
         # Return the defaults if we didn't have anything to look up.
         if not self.config.keys() or key == Qualifier():
@@ -96,6 +111,9 @@ class CodeArtifactKeyringConfig:
                     key.account == candidate.account,
                     key.region == candidate.region,
                     key.name == candidate.name,
+                    key.teleport_proxy_aws_role_arn
+                    == candidate.teleport_proxy_aws_role_arn,
+                    key.teleport_proxy_app_name == candidate.teleport_proxy_app_name,
                 ]
             )
 
@@ -211,10 +229,12 @@ class CodeArtifactBackend(backend.KeyringBackend):
         aws_access_key_id = config.get("aws_access_key_id")
         aws_secret_access_key = config.get("aws_secret_access_key")
         if aws_access_key_id and aws_secret_access_key:
-            kwargs.update({
-                "aws_access_key_id": aws_access_key_id,
-                "aws_secret_access_key": aws_secret_access_key,
-            })
+            kwargs.update(
+                {
+                    "aws_access_key_id": aws_access_key_id,
+                    "aws_secret_access_key": aws_secret_access_key,
+                }
+            )
 
         # Build a CodeArtifact client from the session.
         return self.session.client("codeartifact", **kwargs)
