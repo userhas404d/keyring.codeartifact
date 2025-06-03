@@ -5,6 +5,7 @@ import logging
 
 import boto3
 import boto3.session
+from botocore.config import Config
 
 from datetime import datetime
 from urllib.parse import urlparse
@@ -14,6 +15,8 @@ from keyring.util.platform_ import config_root
 
 from typing import NamedTuple
 from configparser import RawConfigParser
+
+from teleport_proxy_manager.proxies.aws_proxy_manager import AWSProxyManager
 
 
 class Qualifier(NamedTuple):
@@ -147,7 +150,19 @@ class CodeArtifactBackend(backend.KeyringBackend):
         if session:
             self.session = session
         else:
-            self.session = boto3.session.Session()
+            proxy_manager = AWSProxyManager(
+                aws_role="prod-SRE-Teleport-PowerUser", proxy_app="prod"
+            )
+            proxy_args = {}
+            proxy_args["verify"] = proxy_manager.pem_path
+            proxy_args["config"] = Config(proxies={"https": proxy_manager.proxy})
+
+            self.session = boto3.Session(
+                aws_access_key_id=proxy_manager.access_key_id,
+                aws_secret_access_key=proxy_manager.secret_access_key,
+                region_name="us-west-2",
+            )
+            # self.session = boto3.session.Session()
 
     def get_credential(self, service, username):
         authorization_token = self.get_password(service, username)
