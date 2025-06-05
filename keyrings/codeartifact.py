@@ -25,6 +25,7 @@ class Qualifier(NamedTuple):
     account: str = None
     region: str = None
     name: str = None
+    default_client: str = None
 
 
 class CodeArtifactKeyringConfig:
@@ -84,8 +85,15 @@ class CodeArtifactKeyringConfig:
         # Expand the generator into a dictionary.
         self.config = dict(sections)
 
-    def lookup(self, domain=None, account=None, region=None, name=None):
-        key = Qualifier(domain, account, region, name)
+    def lookup(
+        self,
+        domain=None,
+        account=None,
+        region=None,
+        name=None,
+        default_client=None,
+    ):
+        key = Qualifier(domain, account, region, name, default_client)
 
         # Return the defaults if we didn't have anything to look up.
         if not self.config.keys() or key == Qualifier():
@@ -100,6 +108,7 @@ class CodeArtifactKeyringConfig:
                     key.account == candidate.account,
                     key.region == candidate.region,
                     key.name == candidate.name,
+                    key.default_client == candidate.default_client,
                 ]
             )
 
@@ -176,7 +185,10 @@ class CodeArtifactBackend(backend.KeyringBackend):
             # If a session was provided, use it.
             config["session"] = self.session
 
-        if os.getenv("AWS_ACCESS", "boto3") == "tsh":
+        if (
+            config.get("default_client") == "tsh"
+            or os.getenv("CA_KEYRING_CLIENT") == "tsh"
+        ):
             client = TeleportCAClient(**config)
         else:
             client = Boto3CAClient(**config)

@@ -19,7 +19,7 @@ class TeleportCAClient:
         **kwargs,
     ):
         """
-        Initialize the TeleportCodeartifactToken keyring.
+        Initialize the teleport codeartifact client.
         This class is responsible for managing the Teleport login and app authentication
         to retrieve the CodeArtifact authorization token.
         """
@@ -130,10 +130,3 @@ class TeleportCAClient:
         if not self._get_teleport_app_auth_status():
             self._teleport_app_login()
         return self._get_ca_token()
-
-
-# CATOKEN=`aws --region ${REGION} codeartifact get-authorization-token \
-#             --domain ${DOMAIN} \
-#             --domain-owner ${DOMAIN_OWNER} \
-#             --query authorizationToken \
-#             --output text`

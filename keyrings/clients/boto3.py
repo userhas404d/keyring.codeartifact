@@ -22,7 +22,7 @@ class Boto3CAClient:
         token_duration: int = 3600,
     ):
         """
-        Initialize the Boto3CodeArtifact keyring.
+        Initialize the boto3 codeartifact client.
 
         :param region: AWS region to use.
         :param domain: CodeArtifact domain name.

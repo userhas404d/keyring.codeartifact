@@ -91,6 +91,7 @@ def test_bogus_config_returns_empty_configuration(config_data):
             {"account": "000000000000", "name": "teleport"},
             {
                 "token_duration": "1800",
+                "default_client": "tsh",
                 "teleport_proxy": "foo.teleport.sh",
                 "tsh_app_name": "bar",
                 "tsh_aws_role_name": "baz",
