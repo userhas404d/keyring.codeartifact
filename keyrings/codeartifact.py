@@ -13,8 +13,8 @@ from keyring.util.platform_ import config_root
 from typing import NamedTuple
 from configparser import RawConfigParser
 
-from clients.boto3 import Boto3CAClient
-from clients.tsh import TeleportCAClient
+from .clients.boto3 import Boto3CAClient
+from .clients.tsh import TeleportCAClient
 
 
 logging.getLogger("keyrings.codeartifact")
