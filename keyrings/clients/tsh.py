@@ -17,12 +17,12 @@ logging.getLogger("keyrings.codeartifact")
 class TeleportCAClient:
     def __init__(
         self,
-        region: str,
-        domain: str,
         account: str,
-        tsh_aws_role_name: str = None,
-        tsh_app_name: str = None,
+        domain: str,
+        region: str,
         teleport_proxy: str = None,
+        tsh_app_name: str = None,
+        tsh_aws_role_name: str = None,
         **kwargs,
     ):
         """
