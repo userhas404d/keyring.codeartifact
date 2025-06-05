@@ -87,12 +87,26 @@ def test_bogus_config_returns_empty_configuration(config_data):
             {"account": "000000000000", "name": "production"},
             {"token_duration": "1800", "profile_name": "production_profile"},
         ),
+        (
+            {"account": "000000000000", "name": "teleport"},
+            {
+                "token_duration": "1800",
+                "teleport_proxy": "foo.teleport.sh",
+                "tsh_app_name": "bar",
+                "tsh_aws_role_name": "baz",
+            },
+        ),
     ],
 )
 def test_multiple_sections_with_defaults(config_file, query, expected):
     path = config_file("multiple_sections_with_default.cfg")
     config = CodeArtifactKeyringConfig(path)
     values = config.lookup(**query)
+    for key, value in expected.items():
+        print(f"Expected {key}: {value}")
+    for key, value in values.items():
+        print(f"Got {key}: {value}")
+    # print(expected.items())
 
     for key, value in expected.items():
         assert values.get(key) == value

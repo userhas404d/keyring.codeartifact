@@ -21,13 +21,10 @@ logging.getLogger("keyrings.codeartifact")
 
 
 class Qualifier(NamedTuple):
-    account: str = None
     domain: str = None
-    name: str = None
+    account: str = None
     region: str = None
-    teleport_proxy: str = None
-    tsh_app_name: str = None
-    tsh_aws_role_name: str = None
+    name: str = None
 
 
 class CodeArtifactKeyringConfig:
@@ -87,25 +84,8 @@ class CodeArtifactKeyringConfig:
         # Expand the generator into a dictionary.
         self.config = dict(sections)
 
-    def lookup(
-        self,
-        domain=None,
-        account=None,
-        region=None,
-        name=None,
-        teleport_proxy=None,
-        tsh_app_name=None,
-        tsh_aws_role_name=None,
-    ):
-        key = Qualifier(
-            domain,
-            account,
-            region,
-            name,
-            tsh_aws_role_name,
-            tsh_app_name,
-            teleport_proxy,
-        )
+    def lookup(self, domain=None, account=None, region=None, name=None):
+        key = Qualifier(domain, account, region, name)
 
         # Return the defaults if we didn't have anything to look up.
         if not self.config.keys() or key == Qualifier():
@@ -120,9 +100,6 @@ class CodeArtifactKeyringConfig:
                     key.account == candidate.account,
                     key.region == candidate.region,
                     key.name == candidate.name,
-                    key.teleport_proxy == candidate.teleport_proxy,
-                    key.tsh_app_name == candidate.tsh_app_name,
-                    key.tsh_aws_role_name == candidate.tsh_aws_role_name,
                 ]
             )
 
