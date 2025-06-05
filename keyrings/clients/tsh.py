@@ -105,7 +105,7 @@ class TeleportCAClient:
             )
             return True
         except subprocess.CalledProcessError as e:
-            logging.error("Error logging into Teleport app: %s", e.stderr.strip())
+            logging.debug("Error logging into Teleport app: %s", e.stderr.strip())
             return False
 
     def _get_ca_token(self):
