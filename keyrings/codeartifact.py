@@ -1,11 +1,8 @@
 # codeartifact.py -- keyring backend
 
+import os
 import re
 import logging
-
-import boto3
-import boto3.session
-from botocore.config import Config
 
 from datetime import datetime
 from urllib.parse import urlparse
@@ -16,7 +13,11 @@ from keyring.util.platform_ import config_root
 from typing import NamedTuple
 from configparser import RawConfigParser
 
-from teleport_proxy_manager.proxies.aws_proxy_manager import AWSProxyManager
+from clients.boto3 import Boto3CAClient
+from clients.tsh import TeleportCAClient
+
+
+logging.getLogger("keyrings.codeartifact")
 
 
 class Qualifier(NamedTuple):
@@ -24,8 +25,6 @@ class Qualifier(NamedTuple):
     account: str = None
     region: str = None
     name: str = None
-    teleport_proxy_aws_role_arn: str = None
-    teleport_proxy_app_name: str = None
 
 
 class CodeArtifactKeyringConfig:
@@ -85,23 +84,8 @@ class CodeArtifactKeyringConfig:
         # Expand the generator into a dictionary.
         self.config = dict(sections)
 
-    def lookup(
-        self,
-        domain=None,
-        account=None,
-        region=None,
-        name=None,
-        teleport_proxy_aws_role_arn=None,
-        teleport_proxy_app_name=None,
-    ):
-        key = Qualifier(
-            domain,
-            account,
-            region,
-            name,
-            teleport_proxy_aws_role_arn,
-            teleport_proxy_app_name,
-        )
+    def lookup(self, domain=None, account=None, region=None, name=None):
+        key = Qualifier(domain, account, region, name)
 
         # Return the defaults if we didn't have anything to look up.
         if not self.config.keys() or key == Qualifier():
@@ -116,9 +100,6 @@ class CodeArtifactKeyringConfig:
                     key.account == candidate.account,
                     key.region == candidate.region,
                     key.name == candidate.name,
-                    key.teleport_proxy_aws_role_arn
-                    == candidate.teleport_proxy_aws_role_arn,
-                    key.teleport_proxy_app_name == candidate.teleport_proxy_app_name,
                 ]
             )
 
@@ -135,7 +116,7 @@ class CodeArtifactBackend(backend.KeyringBackend):
 
     priority = 9.9
 
-    def __init__(self, /, config=None, session=None, proxy_args={}):
+    def __init__(self, /, config=None):
         super().__init__()
 
         if config:
@@ -146,31 +127,12 @@ class CodeArtifactBackend(backend.KeyringBackend):
             config_file = config_root() / "keyringrc.cfg"
             self.config = CodeArtifactKeyringConfig(config_file)
 
-        # Use the boto3 session implementation by default.
-        if session:
-            self.session = session
-        else:
-            proxy_manager = AWSProxyManager(
-                aws_role="prod-SRE-Teleport-PowerUser", proxy_app="prod"
-            )
-            proxy_args = {}
-            proxy_args["verify"] = proxy_manager.pem_path
-            proxy_args["config"] = Config(proxies={"https": proxy_manager.proxy})
-            self.proxy_args = proxy_args
-
-            self.session = boto3.Session(
-                aws_access_key_id=proxy_manager.access_key_id,
-                aws_secret_access_key=proxy_manager.secret_access_key,
-                region_name="us-west-2",
-            )
-            # self.session = boto3.session.Session()
-
     def get_credential(self, service, username):
         authorization_token = self.get_password(service, username)
         if authorization_token:
             return credentials.SimpleCredential("aws", authorization_token)
 
-    def get_password(self, service, username):
+    def get_password(self, service, username, session=None):
         url = urlparse(service)
 
         # Do a quick check to see if this service URL applies to us.
@@ -198,33 +160,20 @@ class CodeArtifactBackend(backend.KeyringBackend):
 
         # Load our configuration file.
         config = self.config.lookup(
-            domain=domain,
-            account=account,
-            region=region,
-            name=repository_name,
+            domain=domain, account=account, region=region, name=repository_name
         )
-
-        # Create a CodeArtifact client for this repository's region.
-        client = self._get_codeartifact_client(config, region)
 
         # Authorization tokens should be good for an hour by default.
         token_duration = int(config.get("token_duration", 3600))
+        config["token_duration"] = token_duration
+
+        if os.getenv("AWS_ACCESS", "boto3") == "tsh":
+            client = TeleportCAClient(**config)
+        else:
+            client = Boto3CAClient(**config)
 
         # Ask for an authorization token using the current AWS credentials.
-        response = client.get_authorization_token(
-            domain=domain, domainOwner=account, durationSeconds=token_duration
-        )
-
-        # Figure out our local timezone from the current time.
-        tzinfo = datetime.now().astimezone().tzinfo
-        now = datetime.now(tz=tzinfo)
-
-        # Give up if the token has already expired.
-        if response.get("expiration", now) <= now:
-            logging.warning("Received an expired CodeArtifact token!")
-            return
-
-        return response.get("authorizationToken")
+        return client.get_authorization_token()
 
     def set_password(self, service, username, password):
         # Defer setting a password to the next backend
@@ -233,43 +182,3 @@ class CodeArtifactBackend(backend.KeyringBackend):
     def delete_password(self, service, username):
         # Defer deleting a password to the next backend
         raise NotImplementedError()
-
-    def _get_codeartifact_client(self, /, config, region):
-        # CodeArtifact requires a region.
-        kwargs = {
-            "region_name": region,
-            "config": self.proxy_args.get("config", None),
-            "verify": self.proxy_args.get("verify", None),
-        }
-
-        proxy_manager = AWSProxyManager(
-            aws_role="prod-SRE-Teleport-PowerUser", proxy_app="prod"
-        )
-        proxy_args = {}
-        proxy_args["verify"] = proxy_manager.pem_path
-        proxy_args["config"] = Config(proxies={"https": proxy_manager.proxy})
-        self.proxy_args = proxy_args
-
-        session = boto3.Session(
-            aws_access_key_id=proxy_manager.access_key_id,
-            aws_secret_access_key=proxy_manager.secret_access_key,
-            region_name="us-west-2",
-        )
-
-        # If a profile name was provided, use it.
-        profile_name = config.get("profile_name")
-        if profile_name:
-            kwargs.update({"profile_name": profile_name})
-
-        # If static access/secret keys were provided, use them.
-        aws_access_key_id = config.get("aws_access_key_id")
-        aws_secret_access_key = config.get("aws_secret_access_key")
-        if aws_access_key_id and aws_secret_access_key:
-            kwargs.update(
-                {
-                    "aws_access_key_id": aws_access_key_id,
-                    "aws_secret_access_key": aws_secret_access_key,
-                }
-            )
-        # Build a CodeArtifact client from the session.
-        return session.client("codeartifact", **proxy_args)
