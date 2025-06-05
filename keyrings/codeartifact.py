@@ -116,7 +116,7 @@ class CodeArtifactBackend(backend.KeyringBackend):
 
     priority = 9.9
 
-    def __init__(self, /, config=None):
+    def __init__(self, /, config=None, session=None):
         super().__init__()
 
         if config:
@@ -127,12 +127,14 @@ class CodeArtifactBackend(backend.KeyringBackend):
             config_file = config_root() / "keyringrc.cfg"
             self.config = CodeArtifactKeyringConfig(config_file)
 
+        self.session = session
+
     def get_credential(self, service, username):
         authorization_token = self.get_password(service, username)
         if authorization_token:
             return credentials.SimpleCredential("aws", authorization_token)
 
-    def get_password(self, service, username, session=None):
+    def get_password(self, service, username):
         url = urlparse(service)
 
         # Do a quick check to see if this service URL applies to us.
@@ -166,6 +168,13 @@ class CodeArtifactBackend(backend.KeyringBackend):
         # Authorization tokens should be good for an hour by default.
         token_duration = int(config.get("token_duration", 3600))
         config["token_duration"] = token_duration
+        config["domain"] = domain
+        config["region"] = region
+        config["account"] = account
+
+        if self.session:
+            # If a session was provided, use it.
+            config["session"] = self.session
 
         if os.getenv("AWS_ACCESS", "boto3") == "tsh":
             client = TeleportCAClient(**config)

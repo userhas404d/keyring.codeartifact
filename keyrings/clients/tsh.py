@@ -6,13 +6,6 @@ import logging
 
 logging.getLogger("keyrings.codeartifact")
 
-# region = "us-west-2"
-# domain = "leolabs"
-# account_id = "637182377119"
-# aws_role_name = "prod-SRE-Teleport-PowerUser"
-# tsh_app_name = "prod"
-# teleport_proxy = "leolabs-space.teleport.sh"
-
 
 class TeleportCAClient:
     def __init__(
