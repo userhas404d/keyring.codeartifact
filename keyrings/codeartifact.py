@@ -170,9 +170,21 @@ class CodeArtifactBackend(backend.KeyringBackend):
         repository_name = path_match.group(1)
 
         # Load our configuration file.
+        # config = self.config.lookup(
+        #     domain=domain, account=account, region=region, name=repository_name
+        # )
+        config = {}
         config = self.config.lookup(
             domain=domain, account=account, region=region, name=repository_name
         )
+
+        print("===================")
+        raise ValueError(
+            self.config.lookup(
+                domain=domain, account=account, region=region, name=repository_name
+            )
+        )
+        print("===================")
 
         # Authorization tokens should be good for an hour by default.
         token_duration = int(config.get("token_duration", 3600))
