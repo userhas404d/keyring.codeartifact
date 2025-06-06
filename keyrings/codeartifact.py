@@ -174,11 +174,13 @@ class key(backend.KeyringBackend):
         # Authorization tokens should be good for an hour by default.
         token_duration = int(config.get("token_duration", 3600))
         config["token_duration"] = token_duration
+        config["domain"] = domain
 
         if self.session:
             # If a session was provided, use it.
             config["session"] = self.session
 
+        # allow boto3 client override from environment or config
         if (
             config.get("default_client") == "tsh"
             or os.getenv("CA_KEYRING_CLIENT") == "tsh"
