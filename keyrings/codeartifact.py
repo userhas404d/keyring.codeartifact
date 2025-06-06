@@ -112,6 +112,10 @@ class CodeArtifactKeyringConfig:
         # Find the key with the highest score.
         found_key = max(self.config.keys(), key=score)
 
+        print("===================")
+        print(self.config)
+        print("===================")
+
         # Return the most specific match.
         return self.config.get(found_key)
 
@@ -174,14 +178,8 @@ class CodeArtifactBackend(backend.KeyringBackend):
         config = self.config.lookup(
             domain=domain, account=account, region=region, name=repository_name
         )
-
-        print("===================")
-        raise ValueError(
-            self.config.lookup(
-                domain=domain, account=account, region=region, name=repository_name
-            )
-        )
-        print("===================")
+        for key, value in config.items():
+            config[key] = value
 
         # Authorization tokens should be good for an hour by default.
         token_duration = int(config.get("token_duration", 3600))
