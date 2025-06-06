@@ -25,7 +25,6 @@ class Qualifier(NamedTuple):
     account: str = None
     region: str = None
     name: str = None
-    default_client: str = None
 
 
 class CodeArtifactKeyringConfig:
@@ -91,9 +90,8 @@ class CodeArtifactKeyringConfig:
         account=None,
         region=None,
         name=None,
-        default_client=None,
     ):
-        key = Qualifier(domain, account, region, name, default_client)
+        key = Qualifier(domain, account, region, name)
 
         # Return the defaults if we didn't have anything to look up.
         if not self.config.keys() or key == Qualifier():
@@ -108,7 +106,6 @@ class CodeArtifactKeyringConfig:
                     key.account == candidate.account,
                     key.region == candidate.region,
                     key.name == candidate.name,
-                    key.default_client == candidate.default_client,
                 ]
             )
 
