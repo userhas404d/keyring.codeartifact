@@ -112,15 +112,11 @@ class CodeArtifactKeyringConfig:
         # Find the key with the highest score.
         found_key = max(self.config.keys(), key=score)
 
-        print("===================")
-        print(self.config)
-        print("===================")
-
         # Return the most specific match.
         return self.config.get(found_key)
 
 
-class CodeArtifactBackend(backend.KeyringBackend):
+class key(backend.KeyringBackend):
     HOST_REGEX = r"^(.+)-(\d{12})\.d\.codeartifact\.([^\.]+)\.amazonaws\.com$"
     PATH_REGEX = r"^/pypi/([^/]+)/?"
 
@@ -171,22 +167,13 @@ class CodeArtifactBackend(backend.KeyringBackend):
         repository_name = path_match.group(1)
 
         # Load our configuration file.
-        # config = self.config.lookup(
-        #     domain=domain, account=account, region=region, name=repository_name
-        # )
-        config = {}
         config = self.config.lookup(
             domain=domain, account=account, region=region, name=repository_name
         )
-        for key, value in config.items():
-            config[key] = value
 
         # Authorization tokens should be good for an hour by default.
         token_duration = int(config.get("token_duration", 3600))
         config["token_duration"] = token_duration
-        config["domain"] = domain
-        config["region"] = region
-        config["account"] = account
 
         if self.session:
             # If a session was provided, use it.
